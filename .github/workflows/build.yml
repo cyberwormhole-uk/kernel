@@ -28,7 +28,13 @@ jobs:
           sudo apt-get install -y \
             git make bc bison flex libssl-dev \
             libelf-dev python3 zip curl wget \
-            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+            device-tree-compiler
+
+      - name: Fix DTC
+        run: |
+          cd $GITHUB_WORKSPACE/kernel
+          cp $(which dtc) scripts/dtc/dtc
 
       - name: Clone Proton Clang toolchain
         run: |
