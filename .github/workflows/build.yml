@@ -57,14 +57,18 @@ jobs:
         run: |
           export PATH=$GITHUB_WORKSPACE/toolchains/clang/bin:$PATH
           cd $GITHUB_WORKSPACE/kernel
+          # Fix yylloc DTC bug
+          sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/' \
+            scripts/dtc/dtc-lexer.lex.c_shipped
           make O=out ARCH=arm64 kagura_defconfig
           make O=out ARCH=arm64 \
             CC="ccache clang" \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             CLANG_TRIPLE=aarch64-linux-gnu- \
+            HOSTCFLAGS="-fcommon" \
             -j$(nproc) 2>&1 | tee build.log
-
+            
       - name: Check output
         run: |
           if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
