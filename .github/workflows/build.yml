@@ -118,6 +118,17 @@ jobs:
             exit 1
           fi
 
+      - name: Fix KernelSU lsm_hooks header
+        run: |
+          FILE=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/lsm_hook.c
+          if [ -f "$FILE" ]; then
+            sed -i 's/#include <linux\/lsm_hooks\.h>/#include <linux\/security.h>/' "$FILE"
+            echo "Replaced lsm_hooks.h with security.h"
+          else
+            echo "File not found: $FILE"
+            exit 1
+          fi
+
       - name: Generate defconfig and prepare headers
         run: |
           cd $GITHUB_WORKSPACE/kernel
