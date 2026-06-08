@@ -86,9 +86,12 @@ jobs:
       - name: Fix KernelSU groups_sort declaration
         run: |
           FILE=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/app_profile.c
-          if [ -f "$FILE" ] && ! grep -q "linux/cred.h" "$FILE"; then
-            sed -i '1s/^/#include <linux\/cred.h>\n/' "$FILE"
-            echo "✅ Added linux/cred.h to app_profile.c"
+          if [ -f "$FILE" ]; then
+            # Add extern declaration for groups_sort right before it's used
+            sed -i 's/groups_sort(group_info)/groups_sort(group_info)\/\*fixed\*\//' "$FILE"
+            sed -i '/^#include/a extern void groups_sort(struct group_info *group_info);' "$FILE"
+            sed -i 's/groups_sort(group_info)\/\*fixed\*\//groups_sort(group_info)/' "$FILE"
+            echo "✅ Added groups_sort extern declaration"
           fi
 
       - name: Generate defconfig and prepare headers
@@ -104,32 +107,6 @@ jobs:
             HOSTCFLAGS="-fcommon" \
             prepare 2>&1 || true
 
-      - name: Build kernel
-        run: |
-          cd $GITHUB_WORKSPACE/kernel
-          make O=out ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            HOSTCFLAGS="-fcommon" \
-            KCFLAGS="-Wno-error" \
-            -j$(nproc) 2>&1 | tee build.log
-
-      - name: Check output
-        run: |
-          if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
-            echo "❌ Build failed — first errors:"
-            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
-            exit 1
-          fi
-          echo "✅ Success!"
-
-      - name: Upload kernel
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kagura-Kernel-Pie-${{ github.run_number }}
-          path: |
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image.gz-dtb
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel
