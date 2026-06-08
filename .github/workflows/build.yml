@@ -39,28 +39,31 @@ jobs:
 
       - name: Fix flask.h missing
         run: |
-          mkdir -p $GITHUB_WORKSPACE/kernel/security/selinux/include
-          if [ ! -f "$GITHUB_WORKSPACE/kernel/security/selinux/include/flask.h" ]; then
-            cat > $GITHUB_WORKSPACE/kernel/security/selinux/include/flask.h << 'FLASK'
-#ifndef _SELINUX_FLASK_H_
-#define _SELINUX_FLASK_H_
-#define SECCLASS_PROCESS 1
-#define SECCLASS_FILE 2
-#define SECCLASS_DIR 3
-#define SECSID_WILD 0
-#define SECINITSID_KERNEL 1
-#define SECINITSID_SECURITY 2
-#define SECINITSID_UNLABELED 3
-#define SECINITSID_FS 4
-#define SECINITSID_FILE 5
-#define SECINITSID_ANY_SOCKET 10
-#define SECINITSID_PORT 11
-#define SECINITSID_NETIF 12
-#define SECINITSID_NUM 27
-#endif
-FLASK
-            echo "✅ Created stub flask.h"
-          fi
+          python3 -c "
+          import os
+          path = '$GITHUB_WORKSPACE/kernel/security/selinux/include'
+          os.makedirs(path, exist_ok=True)
+          flask = os.path.join(path, 'flask.h')
+          if not os.path.exists(flask):
+              with open(flask, 'w') as f:
+                  f.write('#ifndef _SELINUX_FLASK_H_\n')
+                  f.write('#define _SELINUX_FLASK_H_\n')
+                  f.write('#define SECCLASS_PROCESS 1\n')
+                  f.write('#define SECCLASS_FILE 2\n')
+                  f.write('#define SECCLASS_DIR 3\n')
+                  f.write('#define SECSID_WILD 0\n')
+                  f.write('#define SECINITSID_KERNEL 1\n')
+                  f.write('#define SECINITSID_SECURITY 2\n')
+                  f.write('#define SECINITSID_UNLABELED 3\n')
+                  f.write('#define SECINITSID_FS 4\n')
+                  f.write('#define SECINITSID_FILE 5\n')
+                  f.write('#define SECINITSID_ANY_SOCKET 10\n')
+                  f.write('#define SECINITSID_PORT 11\n')
+                  f.write('#define SECINITSID_NETIF 12\n')
+                  f.write('#define SECINITSID_NUM 27\n')
+                  f.write('#endif\n')
+              print('Created stub flask.h')
+          "
 
       - name: Fix DTC yylloc bug
         run: |
@@ -95,22 +98,20 @@ FLASK
               echo ''
               tail -n +2 "$FILE"
               echo ''
-              echo '#endif /* _APP_PROFILE_GROUPS_SORT_DECLARED */'
+              echo '#endif'
             } > "$FILE.tmp"
             mv "$FILE.tmp" "$FILE"
-            echo "✅ Fixed groups_sort declaration"
+            echo "Fixed groups_sort"
           fi
 
       - name: Fix KernelSU strscpy missing
         run: |
           FILE=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/throne_tracker.c
           if [ -f "$FILE" ]; then
-            if ! grep -q "#include <linux/string.h>" "$FILE"; then
+            if ! grep -q "linux/string.h" "$FILE"; then
               sed -i '1i #include <linux/string.h>' "$FILE"
-              echo "✅ Added linux/string.h to throne_tracker.c"
+              echo "Fixed strscpy"
             fi
-          else
-            echo "⚠️ throne_tracker.c not found, skipping"
           fi
 
       - name: Generate defconfig and prepare headers
@@ -139,11 +140,11 @@ FLASK
       - name: Check output
         run: |
           if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
-            echo "❌ Build failed — first errors:"
+            echo "Build failed - first errors:"
             grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
             exit 1
           fi
-          echo "✅ Success!"
+          echo "Success!"
 
       - name: Upload kernel
         uses: actions/upload-artifact@v4
