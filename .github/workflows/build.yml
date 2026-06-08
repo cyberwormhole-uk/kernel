@@ -39,27 +39,26 @@ jobs:
 
       - name: Fix flask.h missing
         run: |
-          cd $GITHUB_WORKSPACE/kernel
-          mkdir -p security/selinux/include
-          if [ ! -f "security/selinux/include/flask.h" ]; then
-            cat > security/selinux/include/flask.h << 'FLASK'
-          #ifndef _SELINUX_FLASK_H_
-          #define _SELINUX_FLASK_H_
-          #define SECCLASS_PROCESS 1
-          #define SECCLASS_FILE 2
-          #define SECCLASS_DIR 3
-          #define SECSID_WILD 0
-          #define SECINITSID_KERNEL 1
-          #define SECINITSID_SECURITY 2
-          #define SECINITSID_UNLABELED 3
-          #define SECINITSID_FS 4
-          #define SECINITSID_FILE 5
-          #define SECINITSID_ANY_SOCKET 10
-          #define SECINITSID_PORT 11
-          #define SECINITSID_NETIF 12
-          #define SECINITSID_NUM 27
-          #endif
-          FLASK
+          mkdir -p $GITHUB_WORKSPACE/kernel/security/selinux/include
+          if [ ! -f "$GITHUB_WORKSPACE/kernel/security/selinux/include/flask.h" ]; then
+            cat > $GITHUB_WORKSPACE/kernel/security/selinux/include/flask.h << 'FLASK'
+#ifndef _SELINUX_FLASK_H_
+#define _SELINUX_FLASK_H_
+#define SECCLASS_PROCESS 1
+#define SECCLASS_FILE 2
+#define SECCLASS_DIR 3
+#define SECSID_WILD 0
+#define SECINITSID_KERNEL 1
+#define SECINITSID_SECURITY 2
+#define SECINITSID_UNLABELED 3
+#define SECINITSID_FS 4
+#define SECINITSID_FILE 5
+#define SECINITSID_ANY_SOCKET 10
+#define SECINITSID_PORT 11
+#define SECINITSID_NETIF 12
+#define SECINITSID_NUM 27
+#endif
+FLASK
             echo "✅ Created stub flask.h"
           fi
 
@@ -124,72 +123,6 @@ jobs:
           make O=out ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            HOSTCFLAGS="-fcommon" \
-            prepare 2>&1 || true
-
-      - name: Build kernel
-        run: |
-          cd $GITHUB_WORKSPACE/kernel
-          make O=out ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            HOSTCFLAGS="-fcommon" \
-            KCFLAGS="-Wno-error" \
-            -j$(nproc) 2>&1 | tee build.log
-
-      - name: Check output
-        run: |
-          if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
-            echo "❌ Build failed — first errors:"
-            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
-            exit 1
-          fi
-          echo "✅ Success!"
-
-      - name: Upload kernel
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kagura-Kernel-Pie-${{ github.run_number }}
-          path: |
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image.gz-dtb        run: |
-          cd $GITHUB_WORKSPACE/kernel
-          make O=out ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            kagura_defconfig
-          make O=out ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            HOSTCFLAGS="-fcommon" \
-            prepare 2>&1 || true
-
-      - name: Build kernel
-        run: |
-          cd $GITHUB_WORKSPACE/kernel
-          make O=out ARCH=arm64 \
-            CROSS_COMPILE=aarch64-linux-gnu- \
-            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-            HOSTCFLAGS="-fcommon" \
-            KCFLAGS="-Wno-error" \
-            -j$(nproc) 2>&1 | tee build.log
-
-      - name: Check output
-        run: |
-          if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
-            echo "❌ Build failed — first errors:"
-            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
-            exit 1
-          fi
-          echo "✅ Success!"
-
-      - name: Upload kernel
-        uses: actions/upload-artifact@v4
-        with:
-          name: Kagura-Kernel-Pie-${{ github.run_number }}
-          path: |
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image
-            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image.gz-dtb            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             HOSTCFLAGS="-fcommon" \
             prepare 2>&1 || true
 
