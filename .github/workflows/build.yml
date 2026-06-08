@@ -102,8 +102,57 @@ jobs:
             echo "✅ Fixed groups_sort declaration"
           fi
 
+      - name: Fix KernelSU strscpy missing
+        run: |
+          FILE=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/throne_tracker.c
+          if [ -f "$FILE" ]; then
+            if ! grep -q "#include <linux/string.h>" "$FILE"; then
+              sed -i '1i #include <linux/string.h>' "$FILE"
+              echo "✅ Added linux/string.h to throne_tracker.c"
+            fi
+          else
+            echo "⚠️ throne_tracker.c not found, skipping"
+          fi
+
       - name: Generate defconfig and prepare headers
         run: |
+          cd $GITHUB_WORKSPACE/kernel
+          make O=out ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            kagura_defconfig
+          make O=out ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            HOSTCFLAGS="-fcommon" \
+            prepare 2>&1 || true
+
+      - name: Build kernel
+        run: |
+          cd $GITHUB_WORKSPACE/kernel
+          make O=out ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            HOSTCFLAGS="-fcommon" \
+            KCFLAGS="-Wno-error" \
+            -j$(nproc) 2>&1 | tee build.log
+
+      - name: Check output
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
+            echo "❌ Build failed — first errors:"
+            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
+            exit 1
+          fi
+          echo "✅ Success!"
+
+      - name: Upload kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kagura-Kernel-Pie-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image
+            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image.gz-dtb        run: |
           cd $GITHUB_WORKSPACE/kernel
           make O=out ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
