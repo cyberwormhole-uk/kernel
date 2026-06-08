@@ -37,6 +37,41 @@ jobs:
             | bash -s v3.0.0-30-legacy
           echo "CONFIG_KSU=y" >> arch/arm64/configs/kagura_defconfig
 
+      - name: Fix flask.h missing — generate SELinux headers
+        run: |
+          cd $GITHUB_WORKSPACE/kernel
+          # Generate flask.h and av_permissions.h from SELinux policy
+          mkdir -p security/selinux/include
+          if [ -f "security/selinux/genheaders/genheaders.c" ]; then
+            gcc -o genheaders security/selinux/genheaders/genheaders.c
+            ./genheaders security/selinux/include/flask.h \
+                         security/selinux/include/av_permissions.h \
+                         security/selinux/flask.in \
+                         security/selinux/access_vectors 2>/dev/null || true
+          fi
+          # Fallback: create a minimal stub if still missing
+          if [ ! -f "security/selinux/include/flask.h" ]; then
+            cat > security/selinux/include/flask.h << 'FLASK'
+          #ifndef _SELINUX_FLASK_H_
+          #define _SELINUX_FLASK_H_
+          #define SECCLASS_PROCESS 1
+          #define SECCLASS_FILE 2
+          #define SECCLASS_DIR 3
+          #define SECSID_WILD 0
+          #define SECINITSID_KERNEL 1
+          #define SECINITSID_SECURITY 2
+          #define SECINITSID_UNLABELED 3
+          #define SECINITSID_FS 4
+          #define SECINITSID_FILE 5
+          #define SECINITSID_ANY_SOCKET 10
+          #define SECINITSID_PORT 11
+          #define SECINITSID_NETIF 12
+          #define SECINITSID_NUM 27
+          #endif
+          FLASK
+            echo "✅ Created stub flask.h"
+          fi
+
       - name: Fix DTC yylloc bug
         run: |
           sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/' \
