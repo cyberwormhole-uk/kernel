@@ -39,42 +39,23 @@ jobs:
 
       - name: Fix ResuKisu kernel compat
         run: |
-          python3 - <<'EOF'
-          import os
-
-          # Fix 1: session_keyring guard
-          compat = "/home/runner/work/kernel/kernel/kernel/drivers/kernelsu/infra/kernel_compat.h"
-          if os.path.exists(compat):
-              with open(compat, 'r') as f:
-                  c = f.read()
-              c = c.replace(
-                  'if (init_session_keyring != NULL && !current_cred()->session_keyring',
-                  '#ifdef CONFIG_KEYS\n\tif (init_session_keyring != NULL && !current_cred()->session_keyring'
-              )
-              c = c.replace(
-                  'return inode->i_security;',
-                  '#ifdef CONFIG_SECURITY\n\treturn inode->i_security;\n#else\n\treturn NULL;\n#endif'
-              )
-              c = c.replace(
-                  'return cred->security;',
-                  '#ifdef CONFIG_SECURITY\n\treturn cred->security;\n#else\n\treturn NULL;\n#endif'
-              )
-              with open(compat, 'w') as f:
-                  f.write(c)
-              print("Fixed kernel_compat.h")
-
-          # Fix 2: Add ptrace include to syscall.h
-          syscall = "/home/runner/work/kernel/kernel/kernel/arch/arm64/include/asm/syscall.h"
-          if os.path.exists(syscall):
-              with open(syscall, 'r') as f:
-                  c = f.read()
-              if '#include <asm/ptrace.h>' not in c:
-                  c = c.replace('#ifndef __ASM_SYSCALL_H',
-                      '#ifndef __ASM_SYSCALL_H\n#include <asm/ptrace.h>')
-                  with open(syscall, 'w') as f:
-                      f.write(c)
-              print("Fixed syscall.h")
-          EOF
+          COMPAT=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/infra/kernel_compat.h
+          if [ -f "$COMPAT" ]; then
+            # Ensure #endif closes the header guard
+            if ! tail -5 "$COMPAT" | grep -q "#endif"; then
+              echo "#endif /* __KSU_H_KERNEL_COMPAT */" >> "$COMPAT"
+              echo "Added missing #endif to kernel_compat.h"
+            fi
+            # Add ptrace include if missing
+            if ! grep -q "asm/ptrace.h" "$COMPAT"; then
+              sed -i '1a #include <asm/ptrace.h>' "$COMPAT"
+            fi
+          fi
+          # Fix syscall.h
+          SYSCALL=$GITHUB_WORKSPACE/kernel/arch/arm64/include/asm/syscall.h
+          if [ -f "$SYSCALL" ] && ! grep -q "asm/ptrace.h" "$SYSCALL"; then
+            sed -i '/#ifndef __ASM_SYSCALL_H/a #include <asm/ptrace.h>' "$SYSCALL"
+          fi
 
       - name: Fix DTC yylloc bug
         run: |
