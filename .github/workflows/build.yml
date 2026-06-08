@@ -41,7 +41,12 @@ jobs:
         run: |
           sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/' \
             $GITHUB_WORKSPACE/kernel/scripts/dtc/dtc-lexer.lex.c_shipped
-
+            
+      - name: Fix regulator header bug
+        run: |
+          sed -i 's/struct regulator_ocp_notification \*ocp_notification);/struct regulator_ocp_notification *ocp_notification)/' \
+            $GITHUB_WORKSPACE/kernel/include/linux/regulator/consumer.h
+            
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel
