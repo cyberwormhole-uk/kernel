@@ -27,7 +27,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y \
             git make bc bison flex libssl-dev \
-            libelf-def python3 zip curl wget \
+            libelf-dev python3 zip curl wget \
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
       - name: Integrate ResuKisu (legacy 4.9)
@@ -104,6 +104,32 @@ jobs:
             HOSTCFLAGS="-fcommon" \
             prepare 2>&1 || true
 
+      - name: Build kernel
+        run: |
+          cd $GITHUB_WORKSPACE/kernel
+          make O=out ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            HOSTCFLAGS="-fcommon" \
+            KCFLAGS="-Wno-error" \
+            -j$(nproc) 2>&1 | tee build.log
+
+      - name: Check output
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
+            echo "❌ Build failed — first errors:"
+            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
+            exit 1
+          fi
+          echo "✅ Success!"
+
+      - name: Upload kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kagura-Kernel-Pie-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image
+            ${{ github.workspace }}/kernel/out/arch/arm64/boot/Image.gz-dtb
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel
