@@ -57,13 +57,22 @@ jobs:
           sed -i 's/__attribute__((const, noreturn))/__attribute__((noreturn))/' \
             $GITHUB_WORKSPACE/kernel/include/linux/log2.h
 
-      - name: Build kernel
+      - name: Generate defconfig and prepare headers
         run: |
           cd $GITHUB_WORKSPACE/kernel
           make O=out ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             kagura_defconfig
+          make O=out ARCH=arm64 \
+            CROSS_COMPILE=aarch64-linux-gnu- \
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+            HOSTCFLAGS="-fcommon" \
+            prepare 2>&1 || true
+
+      - name: Build kernel
+        run: |
+          cd $GITHUB_WORKSPACE/kernel
           make O=out ARCH=arm64 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
