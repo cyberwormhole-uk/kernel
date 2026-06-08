@@ -30,32 +30,12 @@ jobs:
             libelf-dev python3 zip curl wget \
             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-      - name: Integrate ResuKisu
+      - name: Integrate ResuKisu (legacy 4.9)
         run: |
           cd $GITHUB_WORKSPACE/kernel
           curl -LSs "https://raw.githubusercontent.com/rsuntk/KernelSU/main/kernel/setup.sh" \
-            | bash -s main
+            | bash -s v3.0.0-30-legacy
           echo "CONFIG_KSU=y" >> arch/arm64/configs/kagura_defconfig
-
-      - name: Fix ResuKisu kernel compat
-        run: |
-          COMPAT=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/infra/kernel_compat.h
-          if [ -f "$COMPAT" ]; then
-            # Ensure #endif closes the header guard
-            if ! tail -5 "$COMPAT" | grep -q "#endif"; then
-              echo "#endif /* __KSU_H_KERNEL_COMPAT */" >> "$COMPAT"
-              echo "Added missing #endif to kernel_compat.h"
-            fi
-            # Add ptrace include if missing
-            if ! grep -q "asm/ptrace.h" "$COMPAT"; then
-              sed -i '1a #include <asm/ptrace.h>' "$COMPAT"
-            fi
-          fi
-          # Fix syscall.h
-          SYSCALL=$GITHUB_WORKSPACE/kernel/arch/arm64/include/asm/syscall.h
-          if [ -f "$SYSCALL" ] && ! grep -q "asm/ptrace.h" "$SYSCALL"; then
-            sed -i '/#ifndef __ASM_SYSCALL_H/a #include <asm/ptrace.h>' "$SYSCALL"
-          fi
 
       - name: Fix DTC yylloc bug
         run: |
