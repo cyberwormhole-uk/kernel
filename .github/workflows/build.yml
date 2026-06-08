@@ -49,8 +49,18 @@ jobs:
 
       - name: Fix dma-removed declaration
         run: |
-          sed -i '/#include <linux\/dma-contiguous.h>/a #include <asm\/dma-contiguous.h>' \
-            $GITHUB_WORKSPACE/kernel/drivers/base/dma-removed.c
+          python3 - <<'EOF'
+          path = "/home/runner/work/kernel/kernel/kernel/drivers/base/dma-removed.c"
+          with open(path, 'r') as f:
+              content = f.read()
+          content = content.replace(
+              'dma_contiguous_early_fixup(rmem->base, rmem->size);',
+              '#ifdef CONFIG_HAVE_DMA_CONTIGUOUS\n\t\tdma_contiguous_early_fixup(rmem->base, rmem->size);\n#endif'
+          )
+          with open(path, 'w') as f:
+              f.write(content)
+          print("Done!")
+          EOF
 
       - name: Fix log2.h conflicting attributes
         run: |
