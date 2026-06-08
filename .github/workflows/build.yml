@@ -108,10 +108,14 @@ jobs:
         run: |
           FILE=$GITHUB_WORKSPACE/kernel/drivers/kernelsu/throne_tracker.c
           if [ -f "$FILE" ]; then
-            if ! grep -q "linux/string.h" "$FILE"; then
-              sed -i '1i #include <linux/string.h>' "$FILE"
-              echo "Fixed strscpy"
-            fi
+            {
+              echo '#include <linux/string.h>'
+              cat "$FILE"
+            } > "$FILE.tmp"
+            mv "$FILE.tmp" "$FILE"
+            echo "Fixed: added linux/string.h to throne_tracker.c"
+          else
+            echo "File not found, skipping"
           fi
 
       - name: Generate defconfig and prepare headers
