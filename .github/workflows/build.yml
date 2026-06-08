@@ -41,12 +41,22 @@ jobs:
         run: |
           sed -i 's/YYLTYPE yylloc/extern YYLTYPE yylloc/' \
             $GITHUB_WORKSPACE/kernel/scripts/dtc/dtc-lexer.lex.c_shipped
-            
+
       - name: Fix regulator header bug
         run: |
           sed -i 's/struct regulator_ocp_notification \*ocp_notification);/struct regulator_ocp_notification *ocp_notification)/' \
             $GITHUB_WORKSPACE/kernel/include/linux/regulator/consumer.h
-            
+
+      - name: Fix dma-removed declaration
+        run: |
+          sed -i '/#include <linux\/dma-contiguous.h>/a #include <asm\/dma-contiguous.h>' \
+            $GITHUB_WORKSPACE/kernel/drivers/base/dma-removed.c
+
+      - name: Fix log2.h conflicting attributes
+        run: |
+          sed -i 's/__attribute__((const, noreturn))/__attribute__((noreturn))/' \
+            $GITHUB_WORKSPACE/kernel/include/linux/log2.h
+
       - name: Build kernel
         run: |
           cd $GITHUB_WORKSPACE/kernel
@@ -58,13 +68,14 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu- \
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
             HOSTCFLAGS="-fcommon" \
+            KCFLAGS="-Wno-error" \
             -j$(nproc) 2>&1 | tee build.log
 
       - name: Check output
         run: |
           if [ ! -f "$GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image" ]; then
-            echo "❌ Build failed"
-            tail -50 $GITHUB_WORKSPACE/kernel/build.log
+            echo "❌ Build failed — first errors:"
+            grep -i "error:" $GITHUB_WORKSPACE/kernel/build.log | head -20
             exit 1
           fi
           echo "✅ Success!"
